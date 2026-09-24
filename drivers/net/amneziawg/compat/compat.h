@@ -546,6 +546,12 @@ static inline void *__compat_kvcalloc(size_t n, size_t size, gfp_t flags)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
 #include <net/netlink.h>
 #include <net/genetlink.h>
+/* struct netlink_ext_ack появилась в 4.12, а wg_newlink() принимает указатель на неё
+ * при любой версии ядра. Без объявления заранее тип рождается прямо в списке
+ * параметров, и компилятор предупреждает, что снаружи он не виден; ядра с -Werror
+ * (сборки Android) на этом останавливаются.
+ */
+struct netlink_ext_ack;
 #define nlmsg_parse(a, b, c, d, e, f) nlmsg_parse(a, b, c, d, e)
 #define nla_parse_nested(a, b, c, d, e) nla_parse_nested(a, b, c, d)
 #endif

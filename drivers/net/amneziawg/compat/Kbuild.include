@@ -112,12 +112,30 @@ ifeq ($(wildcard $(srctree)/include/crypto/blake2s.h),)
 ccflags-y += -I$(kbuild-dir)/compat/crypto/blake2s/include
 endif
 
+# До 5.10 BLAKE2s модуля — из zinc (crypto/Kbuild.include), и compat.h переименовывает
+# его функции в zinc_*. Но в стабильные 4.9.320+, 4.14.285+, 4.19.249+ и 5.4.200+
+# вместе с новым random.c пришёл и свой <crypto/blake2s.h> ядра: без этой строки его
+# struct blake2s_state и объявления встречаются с zinc/blake2s.h в одной единице
+# трансляции, и сборка падает. Заголовок-переходник на zinc ставится впереди
+# LINUXINCLUDE, чтобы <crypto/blake2s.h> в исходниках модуля означал zinc.
+ifeq ($(shell [ $(VERSION) -lt 5 -o \( $(VERSION) -eq 5 -a $(PATCHLEVEL) -lt 10 \) ] && echo y)$(if $(wildcard $(srctree)/include/crypto/blake2s.h),y,),yy)
+LINUXINCLUDE := -I$(kbuild-dir)/compat/crypto/blake2s/include $(LINUXINCLUDE)
+endif
+
 ifeq ($(wildcard $(srctree)/include/crypto/chacha20poly1305.h),)
 ccflags-y += -I$(kbuild-dir)/compat/crypto/chacha20poly1305/include
 endif
 
 ifeq ($(wildcard $(srctree)/include/crypto/utils.h),)
 ccflags-y += -I$(kbuild-dir)/compat/crypto/utils/include
+endif
+
+# Библиотечного ChaCha (chacha_init/chacha20_crypt) до 5.5 нет, а в ядрах Android 4.9
+# на его месте лежит заголовок бэкпорта Adiantum с другим интерфейсом. Поэтому
+# проверяется не наличие файла, а наличие функции, и свой заголовок ставится
+# впереди LINUXINCLUDE: через ccflags он оказался бы позади include/ ядра.
+ifeq ($(shell grep -s -F "chacha20_crypt" "$(srctree)/include/crypto/chacha.h"),)
+LINUXINCLUDE := -I$(kbuild-dir)/compat/crypto/chacha/include $(LINUXINCLUDE)
 endif
 
 ifeq ($(wildcard $(srctree)/include/crypto/curve25519.h),)
