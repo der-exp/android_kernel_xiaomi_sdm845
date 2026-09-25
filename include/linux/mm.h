@@ -187,7 +187,7 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
 #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
 #define VM_ARCH_1	0x01000000	/* Architecture-specific flag */
-#define VM_ARCH_2	0x02000000
+#define VM_WIPEONFORK	0x02000000	/* Wipe VMA contents in child. */
 #define VM_DONTDUMP	0x04000000	/* Do not include in the core dump */
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
@@ -233,9 +233,10 @@ extern unsigned int kobjsize(const void *objp);
 # define VM_MAPPED_COPY	VM_ARCH_1	/* T if mapped copy of data (nommu mmap) */
 #endif
 
-#if defined(CONFIG_X86)
-/* MPX specific bounds table or bounds directory */
-# define VM_MPX		VM_ARCH_2
+#if defined(CONFIG_X86) && defined(CONFIG_X86_INTEL_MPX)
+/* The 4.14 backport of VM_WIPEONFORK takes the old VM_ARCH_2 bit that MPX used; upstream moved
+ * MPX to a high VMA flag first. This tree is arm64-only, so refuse the combination instead. */
+# error "VM_WIPEONFORK backport reuses the VM_ARCH_2 bit needed by MPX"
 #endif
 
 #ifndef VM_GROWSUP
