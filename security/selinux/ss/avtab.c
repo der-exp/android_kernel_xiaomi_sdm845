@@ -552,6 +552,33 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 			printk(KERN_ERR "SELinux: avtab: truncated entry\n");
 			return rc;
 		}
+		/*
+		 * Android 16 policy carries `allowx ... nlmsg` rules (xperms type NLMSG, 0x03) even
+		 * when compiled for policy version 30. Left to the Android M compatibility path below
+		 * they are read one byte short (the driver byte is taken for the type), the stream
+		 * shifts and the next entry fails with "invalid type or class" — init then aborts on
+		 * the policy load. Upstream only consults these rules under policycap
+		 * netlink_xperm (6.13), which this kernel does not have, and the ioctl decision code
+		 * in services.c BUG()s on any type other than the two ioctl ones. So parse the rule
+		 * in the new layout and drop it: exactly what a newer kernel does with the capability
+		 * off, and the netlink checks keep using nlmsg_read/nlmsg_write as before.
+		 */
+		if (!avtab_android_m_compat &&
+		    xperms.specified == AVTAB_XPERMS_NLMSG &&
+		    vers >= POLICYDB_VERSION_XPERMS_IOCTL) {
+			rc = next_entry(&xperms.driver, fp, sizeof(u8));
+			if (rc) {
+				printk(KERN_ERR "SELinux: avtab: truncated entry\n");
+				return rc;
+			}
+			rc = next_entry(buf32, fp,
+					sizeof(u32)*ARRAY_SIZE(xperms.perms.p));
+			if (rc) {
+				printk(KERN_ERR "SELinux: avtab: truncated entry\n");
+				return rc;
+			}
+			return 0;
+		}
 		if (avtab_android_m_compat ||
 			    ((xperms.specified != AVTAB_XPERMS_IOCTLFUNCTION) &&
 			    (xperms.specified != AVTAB_XPERMS_IOCTLDRIVER) &&
